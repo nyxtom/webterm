@@ -17,15 +17,18 @@ func attachWebFlags(cmd *kingpin.CmdClause) func() *webterm.AppConfiguration {
 	var statsdAddr = cmd.Flag("statsd_addr", "address to statsd for publishing statistics about the stream").String()
 	var statsdInterval = cmd.Flag("statsd_interval", "flush interval for the statsd client to the endpoint in seconds").Default("2").Int()
 	var statsdPrefix = cmd.Flag("statsd_prefix", "statsd prefix for the webterm").Default("webterm.").String()
+
 	var graphiteAddr = cmd.Flag("graphite_addr", "graphite address for the webterm metrics").Default("").String()
 	var graphitePrefix = cmd.Flag("graphite_prefix", "graphite prefix for the webterm").Default("webterm-metrics.").String()
+
 	var influxDbAddr = cmd.Flag("influxdb_addr", "influxdb address for the webterm metrics").String()
 	var influxDbDatabase = cmd.Flag("influxdb_database", "influxdb database for the webterm metrics").String()
 	var influxDbUsername = cmd.Flag("influxdb_username", "influxdb username for the webterm metrics").String()
 	var influxDbPassword = cmd.Flag("influxdb_password", "influxdb password for the webterm metrics").String()
 	var influxDbServiceMetricsDb = cmd.Flag("influxdb_service_metrics_db", "influxdb service metrics database name").String()
+
 	var stdErrLog = cmd.Flag("stderr_logfile", "writes all stderr log output to the given file or endpoint").String()
-	var stdErrMetrics = cmd.Flag("stderr_metrics", "periodically writes all service metrics to human readable form on stderr").Default("false").Bool()
+
 	var serviceName = cmd.Flag("service_name", "name of the service that this configuration is running").Default("webterm").String()
 	var hostname = cmd.Flag("hostname", "resolved hostname of the service should the OS level hostname be unavailable").String()
 
@@ -46,8 +49,8 @@ func attachWebFlags(cmd *kingpin.CmdClause) func() *webterm.AppConfiguration {
 	// configuration file option
 	var configFile = cmd.Flag("config", "configuration file to load as an alternative to explicit flags (toml formatted)").Default("").String()
 	return func() *webterm.AppConfiguration {
-		cfg := &webterm.AppConfiguration{false, "", "", *statsdAddr, *statsdInterval, *statsdPrefix,
-			*stdErrLog, *stdErrMetrics, *graphiteAddr, *graphitePrefix,
+		cfg := &webterm.AppConfiguration{*statsdAddr, *statsdInterval, *statsdPrefix,
+			*stdErrLog, *graphiteAddr, *graphitePrefix,
 			*influxDbAddr, *influxDbDatabase, *influxDbUsername, *influxDbPassword, *influxDbServiceMetricsDb,
 			*etcdAddr, *etcdCaCert, *etcdTlsKey, *etcdTlsCert, *etcdPrefixKey, *etcdHeartbeatTtl,
 			*serviceName, *hostname, *webAddr, *readTimeout, *writeTimeout, *maxHeaderBytes}

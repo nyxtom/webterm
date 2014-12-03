@@ -163,10 +163,6 @@ func (c *WorkClient) writeRuntimeStats() {
 		c.NewTimer(k)
 	}
 
-	// bind periodic updates to stderr based on configuration
-	if c.Config.StdErrMetrics {
-		go metrics.Log(metrics.DefaultRegistry, 30e9, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
-	}
 	// bind periodic updates to graphite
 	if c.Config.GraphiteAddr != "" {
 		addr, _ := net.ResolveTCPAddr("tcp", c.Config.GraphiteAddr)
