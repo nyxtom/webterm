@@ -10,10 +10,12 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/nyxtom/workclient"
 )
 
 type WebServer struct {
-	WorkClient
+	workclient.WorkClient
 	cmdArgs        []string
 	serverAddr     string
 	cmd            string
@@ -25,7 +27,7 @@ type WebServer struct {
 	listener       *gracefulListener
 }
 
-func NewWebServer(config *AppConfiguration, graceful bool, cmdArgs []string) *WebServer {
+func NewWebServer(config *workclient.Config, graceful bool, cmdArgs []string) *WebServer {
 	server := new(WebServer)
 	server.cmdArgs = cmdArgs
 	server.serverAddr = config.WebAddr
@@ -73,11 +75,11 @@ func (server *WebServer) listen() {
 	var l net.Listener
 
 	if server.listenFD != 0 {
-		server.events <- LogEvent{"info", fmt.Sprintf("Listening on existing file descriptor %d", server.listenFD), nil, nil}
+		server.LogInfoF("Listening on existing file descriptor %d", server.listenFD)
 		f := os.NewFile(uintptr(server.listenFD), "listen socket")
 		l, err = net.FileListener(f)
 	} else {
-		server.events <- LogEvent{"info", "Listening on a new file descriptor, " + server.serverAddr, nil, nil}
+		server.LogInfo("Listening on a new file descriptor, " + server.serverAddr)
 		l, err = net.Listen("tcp", server.serverAddr)
 	}
 	if err != nil {
@@ -100,7 +102,7 @@ func (server *WebServer) listen() {
 	// tell the parent to stop accepting requests and exit
 	if server.listenFD != 0 {
 		parent := syscall.Getppid()
-		server.events <- LogEvent{"info", fmt.Sprintf("killing parent pid: %v", parent), nil, nil}
+		server.LogInfoF("killing parent pid: %v", parent)
 		syscall.Kill(parent, syscall.SIGTERM)
 	}
 
@@ -115,7 +117,7 @@ func (server *WebServer) listen() {
 }
 
 func (server *WebServer) restartGraceful() {
-	server.events <- LogEvent{"info", "initiated graceful restart for web server", nil, nil}
+	server.LogInfo("initiated graceful restart for web server")
 	fl := server.listener.File()
 	args := []string{}
 	for _, k := range server.cmdArgs[1:] {
@@ -130,15 +132,15 @@ func (server *WebServer) restartGraceful() {
 	cmd.ExtraFiles = []*os.File{fl}
 	err := cmd.Start()
 	if err != nil {
-		server.events <- LogEvent{"error", "", err, nil}
+		server.LogErr(err)
 	}
 }
 
 func (server *WebServer) stopListening() {
 	err := server.listener.Close()
-	server.events <- LogEvent{"info", "closing web server", nil, nil}
+	server.LogInfo("closing web server")
 	if err != nil {
-		server.events <- LogEvent{"error", "", err, nil}
+		server.LogErr(err)
 	}
 	server.listenerClosed <- err
 }

@@ -10,9 +10,10 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/nyxtom/kingpin"
 	"github.com/nyxtom/webterm"
+	"github.com/nyxtom/workclient"
 )
 
-func attachWebFlags(cmd *kingpin.CmdClause) func() *webterm.AppConfiguration {
+func attachWebFlags(cmd *kingpin.CmdClause) func() *workclient.Config {
 	// standard configurations (statsd, http endpoint, reconnection timeout)
 	var statsdAddr = cmd.Flag("statsd_addr", "address to statsd for publishing statistics about the stream").String()
 	var statsdInterval = cmd.Flag("statsd_interval", "flush interval for the statsd client to the endpoint in seconds").Default("2").Int()
@@ -37,7 +38,7 @@ func attachWebFlags(cmd *kingpin.CmdClause) func() *webterm.AppConfiguration {
 	var etcdCaCert = cmd.Flag("etcd_cacert", "cacert for tls client associated with etcd connections").String()
 	var etcdTlsKey = cmd.Flag("etcd_tlskey", "tlskey associated with clients connected to etcd").String()
 	var etcdTlsCert = cmd.Flag("etcd_tlscert", "tlscert associated with clients connected to etcd").String()
-	var etcdPrefixKey = cmd.Flag("etcd_prefix_key", "etcd prefix key associated with the registered services").Default("/services/webterm").String()
+	var etcdPrefixKey = cmd.Flag("etcd_prefix_key", "etcd prefix key associated with the registered services").String()
 	var etcdHeartbeatTtl = cmd.Flag("etcd_heartbeat_ttl", "time in seconds between heartbeat service checks").Default("3").Int()
 
 	// web configuration values
@@ -48,8 +49,8 @@ func attachWebFlags(cmd *kingpin.CmdClause) func() *webterm.AppConfiguration {
 
 	// configuration file option
 	var configFile = cmd.Flag("config", "configuration file to load as an alternative to explicit flags (toml formatted)").Default("").String()
-	return func() *webterm.AppConfiguration {
-		cfg := &webterm.AppConfiguration{*statsdAddr, *statsdInterval, *statsdPrefix,
+	return func() *workclient.Config {
+		cfg := &workclient.Config{*statsdAddr, *statsdInterval, *statsdPrefix,
 			*stdErrLog, *graphiteAddr, *graphitePrefix,
 			*influxDbAddr, *influxDbDatabase, *influxDbUsername, *influxDbPassword, *influxDbServiceMetricsDb,
 			*etcdAddr, *etcdCaCert, *etcdTlsKey, *etcdTlsCert, *etcdPrefixKey, *etcdHeartbeatTtl,
@@ -60,7 +61,7 @@ func attachWebFlags(cmd *kingpin.CmdClause) func() *webterm.AppConfiguration {
 	}
 }
 
-func loadConfig(cfg *webterm.AppConfiguration, configFile string) *webterm.AppConfiguration {
+func loadConfig(cfg *workclient.Config, configFile string) *workclient.Config {
 	if configFile != "" {
 		data, err := ioutil.ReadFile(configFile)
 		if err != nil {
