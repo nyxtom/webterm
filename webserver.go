@@ -1,4 +1,4 @@
-package webterm
+package main
 
 import (
 	"fmt"

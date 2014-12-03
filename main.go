@@ -9,7 +9,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/nyxtom/kingpin"
-	"github.com/nyxtom/webterm"
 	"github.com/nyxtom/workclient"
 )
 
@@ -109,7 +108,7 @@ func main() {
 				}
 			} else {
 				cfg := appConfigFn()
-				client := webterm.NewWebServer(cfg, *graceful, os.Args)
+				client := NewWebServer(cfg, *graceful, os.Args)
 				marshalledConfig, _ := json.Marshal(&cfg)
 				client.MarshalledConfig = string(marshalledConfig)
 				client.Run()
