@@ -2,6 +2,7 @@ package webterm
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -36,17 +37,35 @@ func NewWebServer(config *AppConfiguration, graceful bool, cmdArgs []string) *We
 	server.writeTimeout = config.WriteTimeout
 	server.listenerClosed = make(chan error)
 	server.Configure(config, server.listen, server.stopListening)
-	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, "hello world\n")
-	})
-	http.HandleFunc("/restart", func(w http.ResponseWriter, req *http.Request) {
+	server.Routes()
+	return server
+}
+
+func (server *WebServer) Routes() {
+	handle("/", logReq, hello)
+	handle("/restart", func(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "restarting server\n")
 		server.restartGraceful()
 	})
-	http.HandleFunc("/shutdown", func(w http.ResponseWriter, req *http.Request) {
+	handle("/shutdown", func(w http.ResponseWriter, req *http.Request) {
 		server.Close()
 	})
-	return server
+}
+
+func handle(path string, fns ...func(http.ResponseWriter, *http.Request)) {
+	http.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
+		for _, fn := range fns {
+			fn(w, req)
+		}
+	})
+}
+
+func logReq(w http.ResponseWriter, req *http.Request) {
+	log.Printf("%v %v from %v", req.Method, req.URL, req.RemoteAddr)
+}
+
+func hello(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "hello world\n")
 }
 
 func (server *WebServer) listen() {
