@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -44,7 +43,7 @@ func NewWebServer(config *workclient.Config, graceful bool, cmdArgs []string) *W
 }
 
 func (server *WebServer) Routes() {
-	handle("/", logReq, hello)
+	handle("/", server.logReq, server.hello)
 	handle("/restart", func(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "restarting server\n")
 		server.restartGraceful()
@@ -62,11 +61,11 @@ func handle(path string, fns ...func(http.ResponseWriter, *http.Request)) {
 	})
 }
 
-func logReq(w http.ResponseWriter, req *http.Request) {
-	log.Printf("%v %v from %v", req.Method, req.URL, req.RemoteAddr)
+func (server *WebServer) logReq(w http.ResponseWriter, req *http.Request) {
+	server.LogInfoF("%v %v from %v", req.Method, req.URL, req.RemoteAddr)
 }
 
-func hello(w http.ResponseWriter, req *http.Request) {
+func (server *WebServer) hello(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "hello world\n")
 }
 
