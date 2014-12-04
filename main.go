@@ -1,52 +1,53 @@
 package main
 
 import (
+	"flag"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/nyxtom/kingpin"
 	"github.com/nyxtom/workclient"
 )
 
-func attachWebFlags(cmd *kingpin.CmdClause) func() *workclient.Config {
+func attachWebFlags() func() *workclient.Config {
 	// standard configurations (statsd, http endpoint, reconnection timeout)
-	var statsdAddr = cmd.Flag("statsd_addr", "address to statsd for publishing statistics about the stream").String()
-	var statsdInterval = cmd.Flag("statsd_interval", "flush interval for the statsd client to the endpoint in seconds").Default("2").Int()
-	var statsdPrefix = cmd.Flag("statsd_prefix", "statsd prefix for the webterm").Default("webterm.").String()
+	var statsdAddr = flag.String("statsd_addr", "", "address to statsd for publishing statistics about the stream")
+	var statsdInterval = flag.Int("statsd_interval", 2, "flush interval for the statsd client to the endpoint in seconds")
+	var statsdPrefix = flag.String("statsd_prefix", "", "statsd prefix for the webterm")
 
-	var graphiteAddr = cmd.Flag("graphite_addr", "graphite address for the webterm metrics").Default("").String()
-	var graphitePrefix = cmd.Flag("graphite_prefix", "graphite prefix for the webterm").Default("webterm-metrics.").String()
+	var graphiteAddr = flag.String("graphite_addr", "", "graphite address for the webterm metrics")
+	var graphitePrefix = flag.String("graphite_prefix", "", "graphite prefix for the webterm")
 
-	var influxDbAddr = cmd.Flag("influxdb_addr", "influxdb address for the webterm metrics").String()
-	var influxDbDatabase = cmd.Flag("influxdb_database", "influxdb database for the webterm metrics").String()
-	var influxDbUsername = cmd.Flag("influxdb_username", "influxdb username for the webterm metrics").String()
-	var influxDbPassword = cmd.Flag("influxdb_password", "influxdb password for the webterm metrics").String()
-	var influxDbServiceMetricsDb = cmd.Flag("influxdb_service_metrics_db", "influxdb service metrics database name").String()
+	var influxDbAddr = flag.String("influxdb_addr", "", "influxdb address for the webterm metrics")
+	var influxDbDatabase = flag.String("influxdb_database", "", "influxdb database for the webterm metrics")
+	var influxDbUsername = flag.String("influxdb_username", "", "influxdb username for the webterm metrics")
+	var influxDbPassword = flag.String("influxdb_password", "", "influxdb password for the webterm metrics")
+	var influxDbServiceMetricsDb = flag.String("influxdb_service_metrics_db", "", "influxdb service metrics database name")
 
-	var stdErrLog = cmd.Flag("stderr_logfile", "writes all stderr log output to the given file or endpoint").String()
+	var stdErrLog = flag.String("stderr_logfile", "", "writes all stderr log output to the given file or endpoint")
 
-	var serviceName = cmd.Flag("service_name", "name of the service that this configuration is running").Default("webterm").String()
-	var hostname = cmd.Flag("hostname", "resolved hostname of the service should the OS level hostname be unavailable").String()
+	var serviceName = flag.String("service_name", "webterm", "name of the service that this configuration is running")
+	var hostname = flag.String("hostname", "", "resolved hostname of the service should the OS level hostname be unavailable")
 
 	// etcd configuration endpoint for service registry
-	var etcdAddr = cmd.Flag("etcd_addr", "host address for etcd for service registration").String()
-	var etcdCaCert = cmd.Flag("etcd_cacert", "cacert for tls client associated with etcd connections").String()
-	var etcdTlsKey = cmd.Flag("etcd_tlskey", "tlskey associated with clients connected to etcd").String()
-	var etcdTlsCert = cmd.Flag("etcd_tlscert", "tlscert associated with clients connected to etcd").String()
-	var etcdPrefixKey = cmd.Flag("etcd_prefix_key", "etcd prefix key associated with the registered services").String()
-	var etcdHeartbeatTtl = cmd.Flag("etcd_heartbeat_ttl", "time in seconds between heartbeat service checks").Default("3").Int()
+	var etcdAddr = flag.String("etcd_addr", "", "host address for etcd for service registration")
+	var etcdCaCert = flag.String("etcd_cacert", "", "cacert for tls client associated with etcd connections")
+	var etcdTlsKey = flag.String("etcd_tlskey", "", "tlskey associated with clients connected to etcd")
+	var etcdTlsCert = flag.String("etcd_tlscert", "", "tlscert associated with clients connected to etcd")
+	var etcdPrefixKey = flag.String("etcd_prefix_key", "", "etcd prefix key associated with the registered services")
+	var etcdHeartbeatTtl = flag.Int("etcd_heartbeat_ttl", 3, "time in seconds between heartbeat service checks")
 
 	// web configuration values
-	var webAddr = cmd.Flag("web_addr", "primary web address location to listen on").Default(":5000").String()
-	var readTimeout = cmd.Flag("web_read_timeout", "read connection timeout for the web host").Default("10s").Duration()
-	var writeTimeout = cmd.Flag("web_write_timeout", "write connection timeout for the web host").Default("10s").Duration()
-	var maxHeaderBytes = cmd.Flag("web_max_header_bytes", "maximum header bytes for the web host").Default("65536").Int()
+	var webAddr = flag.String("web_addr", ":5000", "primary web address location to listen on")
+	var readTimeout = flag.Duration("web_read_timeout", 10*time.Second, "read connection timeout for the web host")
+	var writeTimeout = flag.Duration("web_write_timeout", 10*time.Second, "write connection timeout for the web host")
+	var maxHeaderBytes = flag.Int("web_max_header_bytes", 1<<16, "maximum header bytes for the web host")
 
 	// configuration file option
-	var configFile = cmd.Flag("config", "configuration file to load as an alternative to explicit flags (toml formatted)").Default("").String()
+	var configFile = flag.String("config", "", "configuration file to load as an alternative to explicit flags (toml formatted)")
 	return func() *workclient.Config {
 		cfg := &workclient.Config{*statsdAddr, *statsdInterval, *statsdPrefix,
 			*stdErrLog, *graphiteAddr, *graphitePrefix,
@@ -76,38 +77,26 @@ func loadConfig(cfg *workclient.Config, configFile string) *workclient.Config {
 }
 
 func main() {
-	var app = kingpin.New("webterm", "")
-	app.Version("0.1.0")
-	app.SetCompactUsage(true)
-	app.SetHelpCmd(false)
-	app.SetHelpUsageOnError(true)
+	var fd = flag.Int("fd", 0, "existing listening socket file descriptor")
+	var background = flag.Bool("background", false, "run the process in the background")
+	appConfigFn := attachWebFlags()
+	flag.Parse()
 
-	// web command
-	var webCmd = app.Command("web", "web host for the web terminal front-end application")
-	appConfigFn := attachWebFlags(webCmd)
-	var fd = webCmd.Flag("fd", "").Default("0").Int()
-	var background = webCmd.Flag("background", "run the process in the background").Default("false").Bool()
-
-	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
-	case "web":
-		{
-			if *background {
-				args := []string{}
-				for _, k := range os.Args {
-					if k != "--background" && k != "-background" {
-						args = append(args, k)
-					}
-				}
-				cmd := exec.Command(args[0], args[1:]...)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				err := cmd.Start()
-				if err != nil {
-					log.Fatalf(err.Error())
-				}
-			} else {
-				ServeWeb(appConfigFn(), *fd, os.Args)
+	if *background {
+		args := []string{}
+		for _, k := range os.Args {
+			if k != "--background" && k != "-background" {
+				args = append(args, k)
 			}
 		}
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Start()
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+	} else {
+		ServeWeb(appConfigFn(), *fd, os.Args)
 	}
 }
