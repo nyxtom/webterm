@@ -17,6 +17,7 @@ import (
 type WebServer struct {
 	workclient.WorkClient
 	cmdArgs    []string
+	closed     bool
 	httpServer *gracefulhttp.Server
 }
 
@@ -94,18 +95,17 @@ func (server *WebServer) listen() {
 
 	handleFunc("/", server.logReq, server.index)
 	handleFunc("/restart", server.logReq, server.restart)
-	handleFunc("/shutdown", server.logReq, server.shutdown)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./public"))))
 
-	server.httpServer.ListenAndServe()
+	err := server.httpServer.ListenAndServe()
+	if err != nil {
+		server.LogErr(err)
+		server.Close()
+	}
 }
 
 func (server *WebServer) stopListening() {
-	err := server.httpServer.Close()
-	if err != nil {
-		server.LogErr(err)
-	} else {
-		server.LogInfo("closing web server")
-	}
+	server.httpServer.Close()
 }
 
 func (server *WebServer) logReq(w http.ResponseWriter, req *http.Request) {
