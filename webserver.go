@@ -2,58 +2,39 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"github.com/nyxtom/gracefulhttp"
 	"github.com/nyxtom/workclient"
 )
 
 type WebServer struct {
 	workclient.WorkClient
 	cmdArgs        []string
-	serverAddr     string
-	cmd            string
-	listenFD       int
-	readTimeout    time.Duration
-	writeTimeout   time.Duration
-	maxHeaderBytes int
 	listenerClosed chan error
-	listener       *gracefulListener
+	httpServer     *gracefulhttp.Server
 }
 
 func NewWebServer(config *workclient.Config, graceful bool, cmdArgs []string) *WebServer {
 	server := new(WebServer)
 	server.cmdArgs = cmdArgs
-	server.serverAddr = config.WebAddr
-	if graceful {
-		server.listenFD = 3
-	}
-	server.maxHeaderBytes = config.MaxHeaderBytes
-	server.readTimeout = config.ReadTimeout
-	server.writeTimeout = config.WriteTimeout
 	server.listenerClosed = make(chan error)
+	server.httpServer = gracefulhttp.NewServer(config.WebAddr, 0)
+	server.httpServer.ReadTimeout = config.ReadTimeout
+	server.httpServer.WriteTimeout = config.WriteTimeout
+	server.httpServer.MaxHeaderBytes = config.MaxHeaderBytes
+	if graceful {
+		server.httpServer.FileDescriptor = 3
+	}
 	server.Configure(config, server.listen, server.stopListening)
-	server.Routes()
 	return server
 }
 
-func (server *WebServer) Routes() {
-	handle("/", server.logReq, server.hello)
-	handle("/restart", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, "restarting server\n")
-		server.restartGraceful()
-	})
-	handle("/shutdown", func(w http.ResponseWriter, req *http.Request) {
-		server.Close()
-	})
-}
-
-func handle(path string, fns ...func(http.ResponseWriter, *http.Request)) {
+func handleFunc(path string, fns ...func(http.ResponseWriter, *http.Request)) {
 	http.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
 		for _, fn := range fns {
 			fn(w, req)
@@ -70,21 +51,6 @@ func (server *WebServer) hello(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server *WebServer) listen() {
-	var err error
-	var l net.Listener
-
-	if server.listenFD != 0 {
-		server.LogInfoF("Listening on existing file descriptor %d", server.listenFD)
-		f := os.NewFile(uintptr(server.listenFD), "listen socket")
-		l, err = net.FileListener(f)
-	} else {
-		server.LogInfo("Listening on a new file descriptor, " + server.serverAddr)
-		l, err = net.Listen("tcp", server.serverAddr)
-	}
-	if err != nil {
-		panic(err)
-	}
-
 	// attach sighup for restarting the server gracefully
 	sc := make(chan os.Signal)
 	signal.Notify(sc, syscall.SIGHUP)
@@ -93,31 +59,31 @@ func (server *WebServer) listen() {
 		case <-sc:
 			server.restartGraceful()
 			return
-		case err = <-server.listenerClosed:
+		case <-server.listenerClosed:
 			return
 		}
 	}()
 
-	// tell the parent to stop accepting requests and exit
-	if server.listenFD != 0 {
-		parent := syscall.Getppid()
-		server.LogInfoF("killing parent pid: %v", parent)
-		syscall.Kill(parent, syscall.SIGTERM)
+	if server.httpServer.FileDescriptor == 0 {
+		server.LogInfoF("listening on %s", server.httpServer.Addr)
+	} else {
+		server.LogInfoF("listening on existing file descriptor %d, %s", server.httpServer.FileDescriptor, server.httpServer.Addr)
 	}
 
-	// setup the http server for the web server
-	httpServer := &http.Server{
-		Addr:           server.serverAddr,
-		ReadTimeout:    server.readTimeout,
-		WriteTimeout:   server.writeTimeout,
-		MaxHeaderBytes: server.maxHeaderBytes}
-	server.listener = newGracefulListener(l)
-	httpServer.Serve(server.listener)
+	handleFunc("/", server.logReq, server.hello)
+	handleFunc("/restart", server.logReq, func(w http.ResponseWriter, req *http.Request) {
+		server.restartGraceful()
+	})
+	handleFunc("/shutdown", server.logReq, func(w http.ResponseWriter, req *http.Request) {
+		server.Close()
+	})
+
+	server.httpServer.ListenAndServe()
 }
 
 func (server *WebServer) restartGraceful() {
 	server.LogInfo("initiated graceful restart for web server")
-	fl := server.listener.File()
+	fl := server.httpServer.File()
 	args := []string{}
 	for _, k := range server.cmdArgs[1:] {
 		if k != "--graceful" {
@@ -136,7 +102,7 @@ func (server *WebServer) restartGraceful() {
 }
 
 func (server *WebServer) stopListening() {
-	err := server.listener.Close()
+	err := server.httpServer.Close()
 	server.LogInfo("closing web server")
 	if err != nil {
 		server.LogErr(err)
