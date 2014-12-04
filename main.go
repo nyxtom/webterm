@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"log"
 	"os"
@@ -86,7 +85,7 @@ func main() {
 	// web command
 	var webCmd = app.Command("web", "web host for the web terminal front-end application")
 	appConfigFn := attachWebFlags(webCmd)
-	var graceful = webCmd.Flag("graceful", "").Default("false").Bool()
+	var fd = webCmd.Flag("fd", "").Default("0").Int()
 	var background = webCmd.Flag("background", "run the process in the background").Default("false").Bool()
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
@@ -107,11 +106,7 @@ func main() {
 					log.Fatalf(err.Error())
 				}
 			} else {
-				cfg := appConfigFn()
-				client := NewWebServer(cfg, *graceful, os.Args)
-				marshalledConfig, _ := json.Marshal(&cfg)
-				client.MarshalledConfig = string(marshalledConfig)
-				client.Run()
+				ServeWeb(appConfigFn(), *fd, os.Args)
 			}
 		}
 	}
