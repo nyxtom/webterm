@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -83,7 +82,6 @@ func main() {
 	appConfigFn := attachWebFlags()
 	flag.Parse()
 
-	fmt.Println(os.Args)
 	if *background {
 		args := []string{}
 		for _, k := range os.Args {
