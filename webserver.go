@@ -95,6 +95,7 @@ func (server *WebServer) listen() {
 
 	handleFunc("/", server.logReq, server.index)
 	handleFunc("/restart", server.logReq, server.restart)
+	handleFunc("/shutdown", server.logReq, server.shutdown)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./public"))))
 
 	err := server.httpServer.ListenAndServe()

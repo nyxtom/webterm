@@ -13,7 +13,7 @@ export GO_BUILD_TAGS
 all: build
 
 build:
-	@go install --tags '$(GO_BUILD_TAGS)' ./...
+	@go install --tags '$(GO_BUILD_TAGS)' ./.
 
 clean:
 	@go clean -i ./...
