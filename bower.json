@@ -1,0 +1,26 @@
+{
+  "name": "webterm",
+  "version": "0.1.0",
+  "authors": [
+    "Thomas Holloway <nyxtom@gmail.com>"
+  ],
+  "description": "not quite sure where this is headed",
+  "moduleType": [
+    "node"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "~2.1.1",
+    "jquery.terminal": "~0.8.8",
+    "ace": "~1.1.8",
+    "ace-builds": "~1.1.8"
+  }
+}

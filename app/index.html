@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/styles/jquery.terminal.css" />
+        <style type="text/css">
+            body {
+                background: #141414;
+            }
+            #editor, #terminal {
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                position: absolute;
+                display: none;
+            }
+            #terminal {
+                display: block;
+            }
+            .terminal, .cmd {
+                color: #aaaaaa;
+            }
+            .terminal .prompt, .cmd .prompt, .terminal .prompt-history, .cmd .prompt-history, .prompt-history {
+                color: #88ee88;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="terminal" class="td"></div>
+        <div id="editor">def answer(x):
+    # insert answer here
+    </div>
+    <div id="statusBar"></div>
+        <script type="text/javascript" src="/scripts/jquery/jquery.min.js"></script>
+        <script type="text/javascript" src="/scripts/jquery.terminal/jquery.terminal-0.8.8.js"></script>
+        <script type="text/javascript" src="/scripts/jquery.terminal/jquery.mousewheel.min.js"></script>
+        <script type="text/javascript" src="/scripts/ace/ace.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-twilight.js"></script>
+        <script type="text/javascript" src="/scripts/ace/keybinding-vim.js"></script>
+        <script type="text/javascript" src="/scripts/ace/keybinding-emacs.js"></script>
+        <script type="text/javascript">
+            var settings = {
+                prompt: 'nyxtom@asimov$ ',
+                name: 'nyxtom@asimov$ ',
+                enabled: true,
+                greetings: "",
+                keypress: function(e) {
+                    if (e.which == 96) {
+                        return false;
+                    }
+                }
+            };
+            function eval(command, terminal) {
+                terminal.echo(command);
+            };
+            
+            $(document).ready(function($) {
+                var terminal = jQuery("#terminal").terminal(eval, settings);
+                var editor = ace.edit("editor")
+                editor.setTheme("ace/theme/twilight");
+                editor.getSession().setMode("ace/mode/python");
+                //editor.setKeyboardHandler("ace/keyboard/vim");
+                editor.resize();
+            });
+        </script>
+    </body>
+</html>
