@@ -5,6 +5,18 @@
  * Copyright (c) 2011-2013 Jakub Jankiewicz <http://jcubic.pl>
  *
  */
+
+@font-face {
+    font-family: 'ShareTechMono-Regular';
+    src: url('../font/ShareTechMono-Regular.eot');
+    src: url('../font/ShareTechMono-Regular.eot?#iefix') format('embedded-opentype'),
+       url('../font/ShareTechMono-Regular.woff') format('woff'),
+       url('../font/ShareTechMono-Regular.ttf') format('truetype'),
+       url('../font/ShareTechMono-Regular.svg#ShareTechMono-Regular') format('svg');
+    font-weight: 400;
+    font-style: normal
+}
+
 .terminal .terminal-output .format, .cmd .format,
 .cmd .prompt, .cmd .prompt div, .terminal .terminal-output div div{
     display: inline-block;
@@ -24,7 +36,20 @@
 .terminal {
     padding: 10px;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
+    padding-right: 32px;
+    z-index: 2;
+}
+.terminal::-webkit-scrollbar {
+    width: 10px;
+    background-color: #5b5b5b;
+    padding: 3px;
+}
+.terminal::-webkit-scrollbar-thumb {
+    background-color: #5b5b5b;
+}
+.terminal::-webkit-scrollbar-track {
+    background-color: #262828;
 }
 .cmd {
     padding: 0;
@@ -40,7 +65,7 @@
 }
 @keyframes blink {
   0%, 100% {
-        background-color: #000;
+        background-color: #2b2b2b;
         color: #aaa;
   }
   50% {
@@ -50,7 +75,7 @@
 }
 @-webkit-keyframes blink {
   0%, 100% {
-        background-color: #000;
+        background-color: #2b2b2b;
         color: #aaa;
   }
   50% {
@@ -60,7 +85,7 @@
 }
 @-ms-keyframes blink {
   0%, 100% {
-        background-color: #000;
+        background-color: #2b2b2b;
         color: #aaa;
   }
   50% {
@@ -70,7 +95,7 @@
 }
 @-moz-keyframes blink {
   0%, 100% {
-        background-color: #000;
+        background-color: #2b2b2b;
         color: #aaa;
   }
   50% {
@@ -80,18 +105,19 @@
 }
 .terminal .terminal-output div div, .cmd .prompt {
     display: block;
-    line-height: 14px;
+    line-height: 1.4;
     height: auto;
 }
 .cmd .prompt {
     float: left;
 }
 .terminal, .cmd {
-    font-family: FreeMono, monospace;
-    color: #aaa;
-    background-color: #000;
-    font-size: 12px;
-    line-height: 14px;
+    font-family: "ShareTechMono-Regular",monospace; 
+    color: #fff;
+    font-weight: none;
+    background-color: #2b2b2b;
+    font-size: 14px;
+    line-height: 1.4;
 }
 .terminal-output > div {
     /*padding-top: 3px;*/
@@ -105,7 +131,7 @@
     /*display: inline-block; */
 }
 .terminal .inverted, .cmd .inverted, .cmd .cursor.blink {
-    background-color: #aaa;
+    background-color: #2b2b2b;
     color: #000;
 }
 .terminal .terminal-output div div::-moz-selection,

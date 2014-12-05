@@ -4,7 +4,7 @@
         <link rel="stylesheet" href="/styles/jquery.terminal.css" />
         <style type="text/css">
             body {
-                background: #141414;
+                background: #1b1b1b;
             }
             #editor, #terminal {
                 top: 0;
@@ -12,36 +12,43 @@
                 left: 0;
                 right: 0;
                 position: absolute;
-                display: none;
+            }
+            #editor {
+                left: 45%;
             }
             #terminal {
-                display: block;
-            }
-            .terminal, .cmd {
-                color: #aaaaaa;
+                right: 55%;
             }
             .terminal .prompt, .cmd .prompt, .terminal .prompt-history, .cmd .prompt-history, .prompt-history {
-                color: #88ee88;
+                color: #9ee;
             }
         </style>
     </head>
     <body>
         <div id="terminal" class="td"></div>
         <div id="editor">def answer(x):
-    # insert answer here
-    </div>
+    # this is a test
+</div>
     <div id="statusBar"></div>
         <script type="text/javascript" src="/scripts/jquery/jquery.min.js"></script>
         <script type="text/javascript" src="/scripts/jquery.terminal/jquery.terminal-0.8.8.js"></script>
         <script type="text/javascript" src="/scripts/jquery.terminal/jquery.mousewheel.min.js"></script>
         <script type="text/javascript" src="/scripts/ace/ace.js"></script>
-        <script type="text/javascript" src="/scripts/ace/theme-twilight.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-monokai.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-clouds_midnight.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-ambiance.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-solarized_dark.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-github.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-pastel_on_dark.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-kr_theme.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-merbivore.js"></script>
+        <script type="text/javascript" src="/scripts/ace/theme-merbivore_soft.js"></script>
         <script type="text/javascript" src="/scripts/ace/keybinding-vim.js"></script>
         <script type="text/javascript" src="/scripts/ace/keybinding-emacs.js"></script>
         <script type="text/javascript">
             var settings = {
-                prompt: 'nyxtom@asimov$ ',
-                name: 'nyxtom@asimov$ ',
+                prompt: 'webterm:~/ ',
+                name: 'webterm:~/ ',
                 enabled: true,
                 greetings: "",
                 keypress: function(e) {
@@ -54,10 +61,11 @@
                 terminal.echo(command);
             };
             
+            var editor;
             $(document).ready(function($) {
                 var terminal = jQuery("#terminal").terminal(eval, settings);
-                var editor = ace.edit("editor")
-                editor.setTheme("ace/theme/twilight");
+                editor = ace.edit("editor")
+                editor.setTheme("ace/theme/monokai");
                 editor.getSession().setMode("ace/mode/python");
                 //editor.setKeyboardHandler("ace/keyboard/vim");
                 editor.resize();
