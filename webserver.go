@@ -1,14 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
+	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/nyxtom/broadcast/client/go/broadcast"
 	"github.com/nyxtom/gracefulhttp"
 	"github.com/nyxtom/workclient"
 )
@@ -19,10 +25,22 @@ type WebServer struct {
 	cmdArgs    []string
 	closed     bool
 	httpServer *gracefulhttp.Server
+	bport      int
+	bip        string
+	bprotocol  string
+}
+
+type WebConfig struct {
+	workclient.Config
+
+	// broadcast configuration
+	BroadcastPort  int    `toml:"broadcast_port" default:"7337"`
+	BroadcastIP    string `toml:"broadcast_ip" default:"127.0.0.1"`
+	BroadcastProto string `toml:"broadcast_proto" default:"redis"`
 }
 
 // NewWebServer returns a work client enabled http server
-func NewWebServer(config *workclient.Config, fd int, cmdArgs []string) *WebServer {
+func NewWebServer(config *WebConfig, fd int, cmdArgs []string) *WebServer {
 	server := new(WebServer)
 	server.cmdArgs = cmdArgs
 	server.httpServer = gracefulhttp.NewServer(config.WebAddr, 0)
@@ -30,12 +48,15 @@ func NewWebServer(config *workclient.Config, fd int, cmdArgs []string) *WebServe
 	server.httpServer.WriteTimeout = config.WriteTimeout
 	server.httpServer.MaxHeaderBytes = config.MaxHeaderBytes
 	server.httpServer.FileDescriptor = fd
-	server.Configure(config, server.listen, server.stopListening)
+	server.Configure(config.Config, server.listen, server.stopListening)
+	server.bport = config.BroadcastPort
+	server.bip = config.BroadcastIP
+	server.bprotocol = config.BroadcastProto
 	return server
 }
 
 // ServeWeb will create a web server, attach signal flags and run the worker
-func ServeWeb(config *workclient.Config, fd int, cmdArgs []string) {
+func ServeWeb(config *WebConfig, fd int, cmdArgs []string) {
 	server := NewWebServer(config, fd, cmdArgs)
 	server.AttachSignals()
 	server.Run()
@@ -61,7 +82,7 @@ func (server *WebServer) RestartGraceful() {
 	}
 }
 
-// attachSignals will create a channel to OS.Signal to listen for any signup events..etc
+// AttachSignals will create a channel to OS.Signal to listen for any signup events..etc
 func (server *WebServer) AttachSignals() {
 	sc := make(chan os.Signal)
 	signal.Notify(sc,
@@ -93,10 +114,16 @@ func (server *WebServer) listen() {
 		server.LogInfoF("listening on existing file descriptor %d, %s", server.httpServer.FileDescriptor, server.httpServer.Addr)
 	}
 
+	handleFunc("/exec", server.logReq, server.exec)
 	handleFunc("/", server.logReq, server.index)
-	handleFunc("/restart", server.logReq, server.restart)
-	handleFunc("/shutdown", server.logReq, server.shutdown)
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./public"))))
+	//handleFunc("/restart", server.logReq, server.restart)
+	//handleFunc("/shutdown", server.logReq, server.shutdown)
+	items := []string{"scripts", "styles", "fonts", "static"}
+	for _, k := range items {
+		prefix := "/" + k + "/"
+		dir := path.Join("./app", k)
+		http.Handle(prefix, http.StripPrefix(prefix, http.FileServer(http.Dir(dir))))
+	}
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
@@ -114,9 +141,60 @@ func (server *WebServer) logReq(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server *WebServer) index(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "hello world\n")
+	t, _ := template.ParseFiles(path.Join("./app", "index.html"))
+	t.Execute(w, nil)
 }
 
+func (server *WebServer) exec(w http.ResponseWriter, req *http.Request) {
+	values := req.URL.Query()
+	response := make(map[string]interface{})
+	if len(values["cmd"]) > 0 {
+		c, err := broadcast.NewClient(server.bport, server.bip, 1, server.bprotocol)
+		if err != nil {
+			server.LogErr(err)
+			return
+		}
+		reg, _ := regexp.Compile(`'.*?'|".*?"|\S+`)
+		cmds := reg.FindAllString(values["cmd"][0], -1)
+		if len(cmds) > 0 {
+			args := make([]interface{}, len(cmds[1:]))
+			for i := range args {
+				item := strings.Trim(string(cmds[1+i]), "\"'")
+				if a, err := strconv.Atoi(item); err == nil {
+					args[i] = a
+				} else if a, err := strconv.ParseFloat(item, 64); err == nil {
+					args[i] = a
+				} else if a, err := strconv.ParseBool(item); err == nil {
+					args[i] = a
+				} else if len(item) == 1 {
+					b := []byte(item)
+					args[i] = string(b[0])
+				} else {
+					args[i] = item
+				}
+			}
+			cmd := strings.ToUpper(cmds[0])
+			reply, err := c.Do(cmd, args...)
+			if err != nil {
+				server.LogErr(err)
+			} else {
+				response["cmd"] = cmd
+				response["args"] = args
+				response["reply"] = reply
+			}
+		}
+	}
+
+	js, err := json.Marshal(response)
+	if err != nil {
+		server.LogErr(err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+/*
 func (server *WebServer) restart(w http.ResponseWriter, req *http.Request) {
 	server.RestartGraceful()
 	http.Redirect(w, req, "/", http.StatusFound)
@@ -125,6 +203,7 @@ func (server *WebServer) restart(w http.ResponseWriter, req *http.Request) {
 func (server *WebServer) shutdown(w http.ResponseWriter, req *http.Request) {
 	server.Close()
 }
+*/
 
 // handleFunc takes a prefix and a list of http handlers to execute them as an in-order stack
 func handleFunc(path string, fns ...func(http.ResponseWriter, *http.Request)) {

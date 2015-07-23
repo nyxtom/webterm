@@ -12,7 +12,7 @@ import (
 	"github.com/nyxtom/workclient"
 )
 
-func attachWebFlags() func() *workclient.Config {
+func attachWebFlags() func() *WebConfig {
 	// standard configurations (statsd, http endpoint, reconnection timeout)
 	var statsdAddr = flag.String("statsd_addr", "", "address to statsd for publishing statistics about the stream")
 	var statsdInterval = flag.Int("statsd_interval", 2, "flush interval for the statsd client to the endpoint in seconds")
@@ -46,21 +46,26 @@ func attachWebFlags() func() *workclient.Config {
 	var writeTimeout = flag.Duration("web_write_timeout", 10*time.Second, "write connection timeout for the web host")
 	var maxHeaderBytes = flag.Int("web_max_header_bytes", 1<<16, "maximum header bytes for the web host")
 
+	// broadcast client configuration
+	var bPort = flag.Int("broadcast_port", 7337, "primary broadcast server location port")
+	var bIP = flag.String("broadcast_ip", "127.0.0.1", "primary broadcast server location host")
+	var bProtocol = flag.String("broadcast_proto", "redis", "primary broadcast server protocol")
+
 	// configuration file option
 	var configFile = flag.String("config", "", "configuration file to load as an alternative to explicit flags (toml formatted)")
-	return func() *workclient.Config {
-		cfg := &workclient.Config{*statsdAddr, *statsdInterval, *statsdPrefix,
+	return func() *WebConfig {
+		cfg := &WebConfig{workclient.Config{*statsdAddr, *statsdInterval, *statsdPrefix,
 			*stdErrLog, *graphiteAddr, *graphitePrefix,
 			*influxDbAddr, *influxDbDatabase, *influxDbUsername, *influxDbPassword, *influxDbServiceMetricsDb,
 			*etcdAddr, *etcdCaCert, *etcdTlsKey, *etcdTlsCert, *etcdPrefixKey, *etcdHeartbeatTtl,
-			*serviceName, *hostname, *webAddr, *readTimeout, *writeTimeout, *maxHeaderBytes}
+			*serviceName, *hostname, *webAddr, *readTimeout, *writeTimeout, *maxHeaderBytes}, *bPort, *bIP, *bProtocol}
 
 		// load configuration file data from toml format appropriately
 		return loadConfig(cfg, *configFile)
 	}
 }
 
-func loadConfig(cfg *workclient.Config, configFile string) *workclient.Config {
+func loadConfig(cfg *WebConfig, configFile string) *WebConfig {
 	if configFile != "" {
 		data, err := ioutil.ReadFile(configFile)
 		if err != nil {

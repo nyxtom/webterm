@@ -14,10 +14,10 @@
                 position: absolute;
             }
             #editor {
-                left: 45%;
+                /*left: 45%;*/
             }
             #terminal {
-                right: 55%;
+                /*right: 55%;*/
             }
             .terminal .prompt, .cmd .prompt, .terminal .prompt-history, .cmd .prompt-history, .prompt-history {
                 color: #9ee;
@@ -46,6 +46,7 @@
         <script type="text/javascript" src="/scripts/ace/keybinding-vim.js"></script>
         <script type="text/javascript" src="/scripts/ace/keybinding-emacs.js"></script>
         <script type="text/javascript">
+            var commands = [];
             var settings = {
                 prompt: 'webterm:~/ ',
                 name: 'webterm:~/ ',
@@ -55,12 +56,65 @@
                     if (e.which == 96) {
                         return false;
                     }
+                },
+                completion: function(terminal, command, callback) {
+                    if (commands.length === 0) {
+                        $.getJSON("/exec?cmd=CMDS", function(response) {
+                            commands = [];
+                            for (var c in response.reply) {
+                                commands.push(c.toLowerCase());
+                            }
+                            callback(commands);
+                        });
+                    } else {
+                        callback(commands);
+                    }
                 }
             };
+
+            function printResponse(terminal, response, indention) {
+                if (typeof response !== 'object') {
+                    terminal.echo(response);
+                } else {
+                    for (var k in response) {
+                        if (typeof response[k] !== 'object') {
+                            terminal.echo(indention + k + ": " + response[k]);
+                        } else {
+                            terminal.echo(indention + k)
+                            printResponse(terminal, response[k], indention + "  ");
+                        }
+                    }
+                }
+                terminal.echo("");
+            }
+
             function eval(command, terminal) {
-                terminal.echo(command);
+                $.getJSON("/exec?cmd=" + command, function(response) {
+                    if (response.reply) {
+                        if (response.cmd === "CMDS") {
+                            if (commands.length === 0) {
+                                commands = [];
+                                for (var k in response.reply) {
+                                    commands.push(k.toLowerCase());
+                                }
+                            }
+                            for (var k in response.reply) {
+                                terminal.echo(k);
+                                terminal.echo("  " + response.reply[k].Description)
+                                if (response.reply[k].Usage) {
+                                    terminal.echo("  usage: " + response.reply[k].Usage)
+                                }
+                            }
+                            terminal.echo("");
+                        } else {
+                            printResponse(terminal, response.reply, "");
+                        }
+                    } else {
+                        terminal.echo("");
+                    }
+                });
             };
-            
+
             var editor;
             $(document).ready(function($) {
                 var terminal = jQuery("#terminal").terminal(eval, settings);
@@ -69,6 +123,7 @@
                 editor.getSession().setMode("ace/mode/python");
                 //editor.setKeyboardHandler("ace/keyboard/vim");
                 editor.resize();
+                $("#editor").hide();
             });
         </script>
     </body>
