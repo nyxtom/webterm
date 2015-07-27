@@ -44,6 +44,7 @@ func main() {
 	var bprotocol = flag.String("bprotocol", "redis", "Broadcast protocol configuration")
 	var configFile = flag.String("config", "", "webterm configuration file (/etc/webterm.conf)")
 	var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
+	var homedir = flag.String("homedir", "", "home directory to serve static files")
 
 	flag.Parse()
 
@@ -105,7 +106,7 @@ func main() {
 	app.LoadBackend(backend)
 
 	// setup bgraph backend
-	backend, err = RegisterTermBackend(app)
+	backend, err = RegisterTermBackend(app, *homedir)
 	if err != nil {
 		fmt.Println(err)
 		return

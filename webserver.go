@@ -180,7 +180,7 @@ func (server *WebServer) exec(w http.ResponseWriter, req *http.Request) {
 			} else {
 				response["cmd"] = cmd
 				response["args"] = args
-				response["reply"] = reply
+				response["reply"] = printReply(cmd, reply, "")
 			}
 		}
 	}
@@ -192,6 +192,19 @@ func (server *WebServer) exec(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
+}
+
+func printReply(cmd string, reply interface{}, indent string) interface{} {
+	switch reply := reply.(type) {
+	case []byte:
+		return fmt.Sprintf("%q\n", reply)
+	case nil:
+		return fmt.Sprintf("(nil)\n")
+	case error:
+		return fmt.Sprintf("%s\n", string(reply.Error()))
+	}
+
+	return reply
 }
 
 /*

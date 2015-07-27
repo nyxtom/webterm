@@ -14,9 +14,10 @@
                 position: absolute;
             }
             #editor {
-                /*left: 45%;*/
+                display: none;
             }
             #terminal {
+                display: block;
                 /*right: 55%;*/
             }
             .terminal .prompt, .cmd .prompt, .terminal .prompt-history, .cmd .prompt-history, .prompt-history {
@@ -74,7 +75,18 @@
 
             function printResponse(terminal, response, indention) {
                 if (typeof response !== 'object') {
-                    terminal.echo(response);
+                    if (typeof response === 'string') {
+                        lines = response.split("\\n");
+                        for (var i = 0; i < lines.length; i++) {
+                            terminal.echo(lines[i]);
+                        }
+                    } else {
+                        terminal.echo(response);
+                    }
+                } else if (Array.isArray(response)) {
+                    for (var k = 0; k < response.length; k++) {
+                        terminal.echo(response[k]);
+                    }
                 } else {
                     for (var k in response) {
                         if (typeof response[k] !== 'object') {
@@ -91,7 +103,9 @@
             function eval(command, terminal) {
                 $.getJSON("/exec?cmd=" + command, function(response) {
                     if (response.reply) {
-                        if (response.cmd === "CMDS") {
+                        if (response.cmd === "EDIT") {
+                            showFile(response.reply.filename, response.reply.contents);
+                        } else if (response.cmd === "CMDS") {
                             if (commands.length === 0) {
                                 commands = [];
                                 for (var k in response.reply) {
@@ -116,15 +130,23 @@
             };
 
             var editor;
+            var terminal;
             $(document).ready(function($) {
-                var terminal = jQuery("#terminal").terminal(eval, settings);
+                terminal = jQuery("#terminal").terminal(eval, settings);
                 editor = ace.edit("editor")
                 editor.setTheme("ace/theme/monokai");
                 editor.getSession().setMode("ace/mode/python");
                 //editor.setKeyboardHandler("ace/keyboard/vim");
                 editor.resize();
-                $("#editor").hide();
             });
+
+            function showFile(fileName, contents) {
+                editor.setValue(contents);
+                editor.focus();
+                editor.selection.moveCursorFileStart();
+                $("#terminal").hide();
+                $("#editor").show();
+            }
         </script>
     </body>
 </html>
