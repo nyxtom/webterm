@@ -21,12 +21,6 @@ func attachWebFlags() func() *WebConfig {
 	var graphiteAddr = flag.String("graphite_addr", "", "graphite address for the webterm metrics")
 	var graphitePrefix = flag.String("graphite_prefix", "", "graphite prefix for the webterm")
 
-	var influxDbAddr = flag.String("influxdb_addr", "", "influxdb address for the webterm metrics")
-	var influxDbDatabase = flag.String("influxdb_database", "", "influxdb database for the webterm metrics")
-	var influxDbUsername = flag.String("influxdb_username", "", "influxdb username for the webterm metrics")
-	var influxDbPassword = flag.String("influxdb_password", "", "influxdb password for the webterm metrics")
-	var influxDbServiceMetricsDb = flag.String("influxdb_service_metrics_db", "", "influxdb service metrics database name")
-
 	var stdErrLog = flag.String("stderr_logfile", "", "writes all stderr log output to the given file or endpoint")
 
 	var serviceName = flag.String("service_name", "webterm", "name of the service that this configuration is running")
@@ -56,7 +50,6 @@ func attachWebFlags() func() *WebConfig {
 	return func() *WebConfig {
 		cfg := &WebConfig{workclient.Config{*statsdAddr, *statsdInterval, *statsdPrefix,
 			*stdErrLog, *graphiteAddr, *graphitePrefix,
-			*influxDbAddr, *influxDbDatabase, *influxDbUsername, *influxDbPassword, *influxDbServiceMetricsDb,
 			*etcdAddr, *etcdCaCert, *etcdTlsKey, *etcdTlsCert, *etcdPrefixKey, *etcdHeartbeatTtl,
 			*serviceName, *hostname, *webAddr, *readTimeout, *writeTimeout, *maxHeaderBytes}, *bPort, *bIP, *bProtocol}
 
